@@ -246,6 +246,19 @@
     with_items: "{{ emailusers }}"
     become: yes
 
+  - name: update passwords
+    ldap_attr:
+      dn: 'uid={{ item.0.username }},{{ ldap_user_searchbase }}'
+      name: userPassword
+      values: "{SHA256}{{ item.1.stdout }}"
+      state: exact
+      bind_dn: 'cn=admin,{{ "dc=" + domain.split(".") | join(",dc=") }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_together:
+      - "{{ emailusers }}"
+      - "{{ hashes.results }}"
+    become: yes
+
   - name: Delete users from delete group
     ldap_entry:
       dn: 'uid={{ item.username }},{{ ldap_user_searchbase }}'
