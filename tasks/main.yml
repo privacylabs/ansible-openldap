@@ -258,6 +258,7 @@
       - "{{ emailusers }}"
       - "{{ hashes.results }}"
     become: yes
+    no_log: true
 
   - name: Delete users from delete group
     ldap_entry:
