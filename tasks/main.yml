@@ -6,6 +6,8 @@
       vtype: 'string'
       value: '{{ domain }}'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure organization name for OpenLDAP in debconf
     debconf:
@@ -14,6 +16,8 @@
       vtype: 'string'
       value: "{{ ldap_org_name }}"
     become: yes
+    tags:
+      - configuration
 
   - name: Configure database backend for OpenLDAP in debconf
     debconf:
@@ -22,6 +26,8 @@
       vtype: 'string'
       value: 'HDB'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure option to move old database for OpenLDAP in debconf
     debconf:
@@ -30,6 +36,8 @@
       vtype: 'boolean'
       value: 'true'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure destination to dump old database for OpenLDAP in debconf
     debconf:
@@ -38,6 +46,8 @@
       vtype: 'string'
       value: '/var/backups/slapd-VERSION'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure option to disable LDAPv2 for OpenLDAP in debconf
     debconf:
@@ -46,6 +56,8 @@
       vtype: 'boolean'
       value: 'false'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure option to purge database for OpenLDAP in debconf
     debconf:
@@ -54,6 +66,8 @@
       vtype: 'boolean'
       value: 'false'
     become: yes
+    tags:
+      - configuration
 
   - name: Configure admin password for OpenLDAP in debconf
     debconf:
@@ -62,6 +76,8 @@
       vtype: 'string'
       value: "{{ ldapadminpassword }}"
     become: yes
+    tags:
+      - configuration
 
   - name: Configure admin password for OpenLDAP in debconf
     debconf:
@@ -70,6 +86,8 @@
       vtype: 'string'
       value: "{{ ldapadminpassword }}"
     become: yes
+    tags:
+      - configuration
 
   - name: Install OpenLDAP packages
     apt:
@@ -77,6 +95,8 @@
       install_recommends: False
     with_items: [ 'slapd', 'ldap-utils' ]
     become: yes
+    tags:
+      - configuration
 
   - name: copy over slapd default file for config options
     copy:
@@ -84,6 +104,8 @@
       dest: /etc/default/slapd
       mode: 0755
     become: yes
+    tags:
+      - configuration
 
   - name: restart slapd to pick up change to only listen on localhost
     service:
@@ -91,22 +113,30 @@
       enabled: yes
       state: restarted
     become: yes
+    tags:
+      - configuration
 
   - name: Install packages for python-ldap pip module
     apt:
       name: '{{ item }}'
     become: yes
     with_items: [ 'libsasl2-dev', 'python-dev', 'libldap2-dev', 'libssl-dev', 'python-pip' ]
+    tags:
+      - configuration
 
   - name: Install python-ldap pip module
     pip:
       name: python-ldap
     become: yes
+    tags:
+      - configuration
 
   - name: check to see if we have loaded password module for openldap
     command: ldapsearch -H ldapi:// -Y EXTERNAL -b "cn=module{0},cn=config" -LLL -Q olcModuleLoad={1}pw-sha2
     register: pw_sha2
     become: yes
+    tags:
+      - configuration
 
   - name: copy ldif for pw module if needed
     copy:
@@ -114,11 +144,15 @@
       dest: /tmp/pw.ldif
     become: yes
     when: pw_sha2.stdout == ""
+    tags:
+      - configuration
 
   - name: load password module for openldap if we haven't yet
     command: ldapmodify -Q -Y EXTERNAL -H ldapi:/// -f /tmp/pw.ldif #ldapmodify -Y EXTERNAL -H ldapi:/// -f pw.ldif
     become: yes
     when: pw_sha2.stdout == ""
+    tags:
+      - configuration
 
   - name: set default password hash scheme
     ldap_attr:
@@ -127,10 +161,14 @@
       values: '{SHA256}'
       state: exact
     become: yes
+    tags:
+      - configuration
 
   - name: calculate admin password hash
     shell: "echo -n {{ ldapadminpassword }} | openssl dgst -sha256 -binary | openssl enc -base64"
     register: admin_hash
+    tags:
+      - configuration
 
   - name: set rootDN password again to store it with new password hash scheme
     ldap_attr:
@@ -142,6 +180,8 @@
     with_dict:
       olcRootDN: 'cn=admin,{{ "dc=" + domain.split(".") | join(",dc=") }}'
       olcRootPW: "{SHA256}{{ admin_hash.stdout }}"
+    tags:
+      - configuration
 
   - name: set admin password again to store it with new password hash scheme
     ldap_attr:
@@ -154,16 +194,22 @@
     become: yes
     with_dict:
       userPassword: "{SHA256}{{ admin_hash.stdout }}"
+    tags:
+      - configuration
 
   - name: Stat misc.ldif to see if we've already imported schema
     stat: path=/etc/ldap/slapd.d/cn=config/cn=schema/cn={4}misc.ldif
     register: st
     become: yes
+    tags:
+      - configuration
 
   - name: Add misc.ldif if we haven't before
     shell: ldapadd -c -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/misc.ldif
     become: yes
     when: not st.stat.exists
+    tags:
+      - configuration
 
   - name: Set slapd log level
     ldap_attr:
@@ -174,9 +220,13 @@
     with_dict:
       olcLogLevel: 'stats none'
     become: yes
+    tags:
+      - configuration
 
   - name: Purge debconf config database for slapd
     command: echo PURGE | debconf-communicate slapd
+    tags:
+      - configuration
 
   - name: Create parent entry for users
     ldap_entry:
@@ -186,6 +236,8 @@
       bind_dn: 'cn=admin,{{ "dc=" + domain.split(".") | join(",dc=") }}'
       bind_pw: '{{ ldapadminpassword }}'
     become: yes
+    tags:
+      - configuration
 
   - name: Create parent entry for groups, locations, resources, addresses
     ldap_entry:
@@ -196,6 +248,8 @@
       bind_pw: '{{ ldapadminpassword }}'
     with_items: [ 'groups', 'locations', 'resources', 'addresses' ]
     become: yes
+    tags:
+      - configuration
 
   - name: Create parent entry for services using LDAP for auth
     ldap_entry:
@@ -205,11 +259,15 @@
       bind_dn: 'cn=admin,{{ "dc=" + domain.split(".") | join(",dc=") }}'
       bind_pw: '{{ ldapadminpassword }}'
     become: yes
+    tags:
+      - configuration
 
   - name: calculate user password hashes
     shell: "echo -n {{ item.password }} | openssl dgst -sha256 -binary | openssl enc -base64"
     register: hashes
     with_items: "{{ emailusers }}"
+    tags:
+      - configuration
 
   - name: Ensure all users are in LDAP
     ldap_entry:
@@ -234,6 +292,8 @@
       - "{{ emailusers }}"
       - "{{ hashes.results }}"
     become: yes
+    tags:
+      - configuration
 
   - name: Add mail attribute for users
     ldap_attr:
@@ -245,6 +305,8 @@
       bind_pw: '{{ ldapadminpassword }}'
     with_items: "{{ emailusers }}"
     become: yes
+    tags:
+      - configuration
 
   - name: update passwords
     ldap_attr:
@@ -259,6 +321,8 @@
       - "{{ hashes.results }}"
     become: yes
     no_log: true
+    tags:
+      - configuration
 
   - name: Delete users from delete group
     ldap_entry:
@@ -269,3 +333,5 @@
     with_items: "{{ deleteusers }}"
     when: deleteusers is defined
     become: yes
+    tags:
+      - configuration
