@@ -122,14 +122,14 @@
     become: yes
     with_items: [ 'libsasl2-dev', 'python-dev', 'libldap2-dev', 'libssl-dev', 'python-pip' ]
     tags:
-      - configuration
+      - packages
 
   - name: Install python-ldap pip module
     pip:
       name: python-ldap
     become: yes
     tags:
-      - configuration
+      - packages
 
   - name: check to see if we have loaded password module for openldap
     command: ldapsearch -H ldapi:// -Y EXTERNAL -b "cn=module{0},cn=config" -LLL -Q olcModuleLoad={1}pw-sha2
