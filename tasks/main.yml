@@ -243,7 +243,6 @@
     ldap_entry:
       dn: 'ou={{ item }},{{ "dc=" + domain.split(".") | join(",dc=") }}'
       objectClass: organizationalUnit
-      ou: groups
       bind_dn: 'cn=admin,{{ "dc=" + domain.split(".") | join(",dc=") }}'
       bind_pw: '{{ ldapadminpassword }}'
     with_items: [ 'groups', 'locations', 'resources', 'addresses' ]
