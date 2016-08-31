@@ -1,0 +1,70 @@
+#!/bin/bash
+PASS=$(slappasswd -s {{ldapadminpassword}})
+DATABASEID=$(ar=$(ls /etc/ldap/slapd.d/cn\=config/*{?}* | cut -d "{" -f2 | cut -d "}" -f1)&&nr=$(($(echo "${ar[*]}" | sort -nr | head -n1) + 1))&&echo $nr)
+TEMPFILE=/tmp/database-{{domain}}.ldif
+DBDIR=/var/lib/ldap/{{domain}}
+
+mkdir -p $DBDIR
+chown openldap:openldap $DBDIR
+
+cat << EOF > $TEMPFILE
+# Create directory database
+dn: olcDatabase={$DATABASEID}hdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcHdbConfig
+olcDatabase: {$DATABASEID}hdb
+olcDbDirectory: $DBDIR
+olcSuffix: {{ domaindn }}
+olcAccess: {0}to attrs=userPassword,shadowLastChange by self write by anonymous auth by * none
+olcAccess: {1}to dn.base="" by * read
+olcAccess: {2}to * by * read
+olcLastMod: TRUE
+olcRootDN:  {{ admindn }}
+olcDbCheckpoint: 512 30
+olcDbConfig: {0}set_cachesize 0 2097152 0
+olcDbConfig: {1}set_lk_max_objects 1500
+olcDbConfig: {2}set_lk_max_locks 1500
+olcDbConfig: {3}set_lk_max_lockers 1500
+olcDbIndex: objectClass eq
+olcDbIndex: cn,uid eq
+olcDbIndex: uidNumber,gidNumber eq
+olcDbIndex: member,memberUid eq
+olcRootPW: $PASS
+
+# Modifications
+#dn: olcDatabase={-1}frontend,cn=config
+#changetype: modify
+#delete: olcAccess
+
+#dn: olcDatabase={0}config,cn=config
+#changetype: modify
+#replace: olcRootDN
+#olcRootDN: cn=admin,cn=config
+
+#dn: olcDatabase={0}config,cn=config
+#changetype: modify
+#replace: olcRootPW
+#olcRootPW: $PASS
+
+#dn: olcDatabase={0}config,cn=config
+#changetype: modify
+#delete: olcAccess
+
+#dn: {{ domaindn }}
+#objectClass: dcObject
+#objectClass: organization
+#o: {{ domain }}
+#dc: {{ domain.split(".")[0] }}
+
+#dn: {{ admindn }}
+#objectClass: simpleSecurityObject
+#objectClass: organizationalRole
+#cn: admin
+#userPassword: $PASS
+#description: LDAP administrator
+
+EOF
+
+
+sudo ldapadd -Y EXTERNAL -H ldapi:/// -f $TEMPFILE
+#rm $TEMPFILE

@@ -1,0 +1,74 @@
+---
+  - name: calculate user password hashes
+    shell: "echo -n {{ item.password }} | openssl dgst -sha256 -binary | openssl enc -base64"
+    register: hashes
+    with_items: "{{ emailusers }}"
+    tags:
+      - configuration
+
+  - name: Ensure all users are in LDAP
+    ldap_entry:
+      dn: 'uid={{ item.0.username }},{{ ldap_user_searchbase }}'
+      state: present
+      objectClass: inetLocalMailRecipient,inetOrgPerson,posixAccount,shadowAccount
+      uid: "{{ item.0.username }}"
+      sn: "{{ item.0.lastname }}"
+      givenName: "{{ item.0.firstname }}"
+      cn: "{{ item.0.fullname }}"
+      displayName: "{{ item.0.fullname }}"
+      uidNumber: "{{ item.0.uidnumber }}"
+      gidNumber: "{{ item.0.gidnumber }}"
+      userPassword: "{SHA256}{{ item.1.stdout }}"
+      gecos: "{{ item.0.fullname }}"
+      homeDirectory: /data/mail/{{ domain }}/{{ item.0.username }}
+      mailLocalAddress: "{{ item.0.username }}@{{ domain }},postmaster@{{ domain }}"
+      mailRoutingAddress: "{{ item.0.username }}@{{ domain }}"
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_together:
+      - "{{ emailusers }}"
+      - "{{ hashes.results }}"
+    become: yes
+    tags:
+      - configuration
+
+  - name: Add mail attribute for users
+    ldap_attr:
+      dn: 'uid={{ item.username }},{{ ldap_user_searchbase }}'
+      name: mail
+      values: "{{ item.username }}@{{ domain }}"
+      state: exact
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_items: "{{ emailusers }}"
+    become: yes
+    tags:
+      - configuration
+
+  - name: update passwords
+    ldap_attr:
+      dn: 'uid={{ item.0.username }},{{ ldap_user_searchbase }}'
+      name: userPassword
+      values: "{SHA256}{{ item.1.stdout }}"
+      state: exact
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_together:
+      - "{{ emailusers }}"
+      - "{{ hashes.results }}"
+    become: yes
+    no_log: true
+    tags:
+      - configuration
+
+  - name: Delete users from delete group
+    ldap_entry:
+      dn: 'uid={{ item.username }},{{ ldap_user_searchbase }}'
+      state: absent
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_items: "{{ deleteusers }}"
+    when: deleteusers is defined
+    become: yes
+    tags:
+      - configuration

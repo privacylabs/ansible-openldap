@@ -1,0 +1,115 @@
+---
+  - name: Search for domain existence
+    command: "ldapsearch -x -H ldapi:/// -b '{{ domaindn }}'"
+    register: ldapsearch_result
+    tags:
+      - configuration
+      - packages
+    ignore_errors: true
+
+  - name: Copy domain creation script if database doesn't exist'
+    template:
+      src: createdomain.sh.h2
+      dest: /tmp/createdomain.sh
+      mode: 700
+    become: yes
+    when: ldapsearch_result.rc != 0
+    tags:
+      - configuration
+      - packages
+
+  - name: Execute domain creation script if database doesn't exist
+    command: /tmp/createdomain.sh
+    become: yes
+    when: ldapsearch_result.rc != 0
+    tags:
+      - configuration
+      - packages
+      
+  - name: dbug
+    debug: var=ldap_user_searchbase
+    tags:
+      - configuration
+      - packages
+
+  - name: dbug
+    debug: var=admindn
+    tags:
+      - configuration
+      - packages
+
+  - name: dbug
+    debug: var=domaindn
+    tags:
+      - configuration
+      - packages
+
+  - name: Create tree root
+    ldap_entry:
+      dn: '{{ domaindn }}'
+      objectClass: "dcObject,organization"
+      o: '{{ domain }}'
+      dc: '{{ domain.split(".")[0] }}'
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    become: yes
+    tags:
+      - configuration
+      - packages
+
+  - name: calculate admin password hash
+    shell: "echo -n {{ ldapadminpassword }} | openssl dgst -sha256 -binary | openssl enc -base64"
+    register: admin_hash
+    tags:
+      - configuration
+      - packages
+
+  - name: Create admin for domain
+    ldap_entry:
+      dn: '{{ admindn }}'
+      objectClass: "simpleSecurityObject,organizationalRole"
+      cn: admin
+      userPassword: "{SHA256}{{ admin_hash.stdout }}"
+      description: LDAP administrator
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    tags:
+      - configuration
+      - packages
+
+  - name: Create parent entry for users
+    ldap_entry:
+      dn: '{{ ldap_user_searchbase }}'
+      objectClass: organizationalUnit
+      ou: people
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    become: yes
+    tags:
+      - configuration
+      - packages
+
+  - name: Create parent entry for groups, locations, resources, addresses
+    ldap_entry:
+      dn: 'ou={{ item }},{{ domaindn }}'
+      objectClass: organizationalUnit
+      ou: groups
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    with_items: [ 'groups', 'locations', 'resources', 'addresses' ]
+    become: yes
+    tags:
+      - configuration
+      - packages
+
+  - name: Create parent entry for services using LDAP for auth
+    ldap_entry:
+      dn: '{{ ldap_service_searchbase }}'
+      objectClass: organizationalUnit
+      ou: services
+      bind_dn: '{{ admindn }}'
+      bind_pw: '{{ ldapadminpassword }}'
+    become: yes
+    tags:
+      - configuration
+      - packages
