@@ -113,12 +113,3 @@
     tags:
       - configuration
       - packages
-
-  - name: stop slapd to pick up change to only listen on localhost
-    service:
-      name: slapd
-      enabled: yes
-      state: stopped
-    become: yes
-    tags:
-      - packages
