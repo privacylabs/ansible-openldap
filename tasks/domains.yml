@@ -25,25 +25,8 @@
     tags:
       - configuration
       - packages
+
       
-  - name: dbug
-    debug: var=ldap_user_searchbase
-    tags:
-      - configuration
-      - packages
-
-  - name: dbug
-    debug: var=admindn
-    tags:
-      - configuration
-      - packages
-
-  - name: dbug
-    debug: var=domaindn
-    tags:
-      - configuration
-      - packages
-
   - name: Create tree root
     ldap_entry:
       dn: '{{ domaindn }}'
