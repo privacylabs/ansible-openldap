@@ -1,5 +1,5 @@
 #!/bin/bash
-PASS=$(slappasswd -s "{{ldapadminpassword}}")
+PASS=$(slappasswd -s '{{ldapadminpassword}}')
 DATABASEID=$(ar=$(ls /etc/ldap/slapd.d/cn\=config/*{?}* | cut -d "{" -f2 | cut -d "}" -f1)&&nr=$(($(echo "${ar[*]}" | sort -nr | head -n1) + 1))&&echo $nr)
 TEMPFILE=/tmp/database-{{domain}}.ldif
 DBDIR=/var/lib/ldap/{{domain}}
