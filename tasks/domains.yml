@@ -41,7 +41,7 @@
       - packages
 
   - name: calculate admin password hash
-    shell: "echo -n {{ ldapadminpassword }} | openssl dgst -sha256 -binary | openssl enc -base64"
+    shell: "echo -n '{{ ldapadminpassword }}' | openssl dgst -sha256 -binary | openssl enc -base64"
     register: admin_hash
     tags:
       - configuration

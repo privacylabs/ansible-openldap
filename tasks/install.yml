@@ -54,7 +54,7 @@
       name: 'slapd'
       question: 'slapd/password1'
       vtype: 'string'
-      value: "{{ ldapadminpassword }}"
+      value: '{{ ldapadminpassword }}'
     become: yes
     tags:
       - packages
@@ -64,7 +64,7 @@
       name: 'slapd'
       question: 'slapd/password2'
       vtype: 'string'
-      value: "{{ ldapadminpassword }}"
+      value: '{{ ldapadminpassword }}'
     become: yes
     tags:
       - packages
@@ -155,7 +155,7 @@
       - packages
 
   - name: calculate admin password hash
-    shell: "echo -n {{ ldapadminpassword }} | openssl dgst -sha256 -binary | openssl enc -base64"
+    shell: "echo -n '{{ ldapadminpassword }}' | openssl dgst -sha256 -binary | openssl enc -base64"
     register: admin_hash
     tags:
       - packages
@@ -182,7 +182,7 @@
       values: "{{ item.value }}"
       state: exact
       bind_dn: "{{ defaultadmindn }}"
-      bind_pw: "{{ ldapadminpassword }}"
+      bind_pw: '{{ ldapadminpassword }}'
     become: yes
     with_dict:
       userPassword: "{SHA256}{{ admin_hash.stdout }}"
