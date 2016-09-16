@@ -1,6 +1,6 @@
 ---
   - name: calculate user password hashes
-    shell: "echo -n {{ item.password }} | openssl dgst -sha256 -binary | openssl enc -base64"
+    shell: "echo -n '{{ item.password }}' | openssl dgst -sha256 -binary | openssl enc -base64"
     register: hashes
     with_items: "{{ emailusers }}"
     when: emailusers is defined
