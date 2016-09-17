@@ -4,6 +4,7 @@
     register: hashes
     with_items: "{{ emailusers }}"
     when: emailusers is defined
+    no_log: true
     tags:
       - configuration
 
@@ -31,6 +32,7 @@
       - "{{ hashes.results }}"
     become: yes
     when: emailusers is defined
+    no_log: true
     tags:
       - configuration
 
@@ -45,6 +47,7 @@
     with_items: "{{ emailusers }}"
     become: yes
     when: emailusers is defined
+    no_log: true
     tags:
       - configuration
 
